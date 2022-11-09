@@ -1,0 +1,162 @@
+---
+title: "450 Project"
+author: "Cassy DeBlois"
+date: "4/12/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+#clearing the command shell so that nothing leftover from other code impacts this one
+shell("cls")
+
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyr)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document.
+
+```{r, include=FALSE}
+
+#function to convert the letter grades to numeric values
+letter_to_number <- function(x){
+  
+  #I have to use ifelse rather than else if because the input is a vector
+  ifelse(x=="A", 4.00, 
+  ifelse (x=="A-", 3.67,
+  ifelse (x=="B+", 3.33,
+  ifelse (x=="B", 3.00,
+  ifelse (x=="B-", 2.67,
+  ifelse (x=="C+", 2.33,
+  ifelse (x=="C", 2.00,
+  ifelse (x=="C-", 1.67,
+  ifelse (x== "D+", 1.33,
+  ifelse (x=="D", 1.00,
+  ifelse (x== "F",0.00, x)))))))))))
+  
+  
+}
+
+```
+
+## First, I load the data into a dataframe in r called allData
+
+```{r warning=FALSE, include=FALSE}
+
+#file containing all the groups goes here
+allGroups <- 'AllGroups.txt'
+
+#create the data frame with a row of data to not get null errors when adding rows later
+allData <- data.frame(Group = c(0),
+                      Section = c(0),
+                      Data = c(0)
+                      )
+
+#variable used to skip the first line in the files since they contain titles, m and o have the same function
+n <- 1
+
+#read all the groups from the original file
+for (group in readLines(allGroups)){ #input top file here
+  if(n>1){
+    m<- 1
+    
+    #read all the sections from the group files
+    for (section in readLines(group)){
+      if(m>1){
+       o <- 1
+      
+       #read all the data from the section files
+       for(data in readLines(section)){
+         if(o>1){
+           
+           #add all the data to the data frame
+           allData[nrow(allData)+1,] = c(group, section, data)
+         }
+         o <- o+1
+       }
+      }
+      m<-m+1
+  }}
+  n <- n+1
+}
+
+```
+
+```{r}
+#preview the beginning of the table
+head(allData)
+
+```
+
+## Now I reformat the data in the table to the way I want it
+
+```{r warning=TRUE, include=FALSE}
+
+#remove first row
+allData <- allData[-c(1), ]
+
+#separate the data using a comma as a separator
+allData <- separate(allData, col=Data, into=c("email", "lname", "fname", "grade"), sep=",")
+
+#combine the first and last names
+allData <- unite(allData, col = "name", c('lname', 'fname') , sep=', ')
+
+#convert letter grades to numbers
+allData$grade <- letter_to_number(allData$grade)
+
+#convert grade to proper data type
+allData$grade <- as.numeric(as.character(allData$grade))
+
+```
+
+```{r}
+#preview the beginning of the table
+head(allData)
+
+```
+
+## Here is the data analysis comparing each section to its group
+
+```{r warning=FALSE, include =FALSE}
+
+diffSections = list()
+#variable used to skip the first line in the files since they contain titles, m and has the same function
+n <- 1
+#read all the groups from the original file
+for (group in readLines(allGroups)){ #input top file here
+  if(n>1){
+    m<- 1
+    #read all the sections from the group files
+    for (section in readLines(group)){
+      if(m>1){
+        #do t.test between all grades for the current section compared to all grades in the current group
+        test <- t.test((allData$grade[allData$Section==section & allData$Group == group]), allData$grade[allData$Group == group])$p.value
+    
+       if(test < 0.05){
+         #add sections that are significantly different so that we can easily print them
+         diffSections <- c(diffSections, section)
+       }
+        
+      }
+      m<-m+1
+    }
+  }
+  n <- n+1
+}
+
+
+```
+
+These sections have significantly different grades from the group
+
+```{r}
+print(diffSections)
+```
+
+
+
+
